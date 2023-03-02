@@ -343,14 +343,14 @@ def predict_segmentor(clf,
     return result
 
 
-def clean_predicted_roots(predicted_segmentation):
+def clean_predicted_roots(predicted_segmentation, small_objects_threshold = 500, closing_diameter = 6):
     """
     Functions that takes a predicted segmentation as inputs (roots are assumed to have value 1)
     and retunrs cleaned (boolean) root image
     """
     seg = predicted_segmentation == 1
-    no_small = morphology.remove_small_objects(seg, 500)
-    closed = morphology.closing(no_small, morphology.diamond(6))
+    no_small = morphology.remove_small_objects(seg, small_objects_threshold)
+    closed = morphology.closing(no_small, morphology.diamond(closing_diameter))
     return closed
 
 def measure_roots(clean_root_image):
@@ -458,7 +458,13 @@ def save_detected_roots_im(clean_root_image, original_im, fname):
 
 # %% functions for large-scale data handling (computing features for multiple images, saving and reading)
 
-def imgs_to_XY_data(img_file_list = None, root_traces_file_list = None):
+def imgs_to_XY_data(img_file_list = None,
+                    root_traces_file_list = None,
+                    auto_transform = True,
+                    dilatation_radius = 7,
+                    buffer_radius = 15,
+                    no_root_radius = 100,
+                    sigma_max = 16):
     """
     Function to transform a set of images and adjoining root trace files to Features (X) and Labels (Y)
     that can be used for training a segmentation model. 
@@ -486,33 +492,40 @@ def imgs_to_XY_data(img_file_list = None, root_traces_file_list = None):
                 try:
                     # load image
                     im, names, vertices_s, vertices_e = load_training_image(img_file,
-                                                                            root_traces_file)
+                                                                            root_traces_file,
+                                                                            auto_transform = auto_transform)
 
                     # transform coordinates
-                    src = [[2683, 75],
-                        [2472, 82],
-                        [2682, 3373],
-                        [2536, 3370]]
+                    # OUTCOMMENTED as now handled by the function 'load_training_data'
+                    #src = [[2683, 75],
+                    #    [2472, 82],
+                    #    [2682, 3373],
+                    #    [2536, 3370]]
 
-                    dst = [[83, 2501],
-                            [86, 2715],
-                            [3375, 2493],
-                            [3375, 2648]]
+                    #dst = [[83, 2501],
+                    #        [86, 2715],
+                    #        [3375, 2493],
+                    #        [3375, 2648]]
 
-                    vertices_s = transform_coordinates(src, dst, vertices_s)
-                    vertices_e = transform_coordinates(src, dst, vertices_e)
+                    #vertices_s = transform_coordinates(src, dst, vertices_s)
+                    #vertices_e = transform_coordinates(src, dst, vertices_e)
                     vertices_s_RC = flip_XY_RC(vertices_s)
                     vertices_e_RC = flip_XY_RC(vertices_e)
 
                     # create root mask
-                    root_mask = create_root_mask(im, vertices_s_RC, vertices_e_RC)
-                    root_buffer_background = create_root_buffer_background_image(root_mask)
+                    root_mask = create_root_mask(im, 
+                                                 vertices_s_RC, 
+                                                 vertices_e_RC,
+                                                 dilatation_radius = dilatation_radius)
+                    root_buffer_background = create_root_buffer_background_image(root_mask,
+                                                                                 buffer_radius = buffer_radius,
+                                                                                 no_root_radius = no_root_radius)
 
                     # create training data labels
                     training_labels = create_training_data(root_buffer_background)
 
                     # compute features
-                    features = im2features(im)
+                    features = im2features(im, sigma_max = sigma_max)
 
                     # flatten labels and features
                     features_flat = features[training_labels > 0,:]
