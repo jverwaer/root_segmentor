@@ -12,6 +12,9 @@ from scipy.ndimage import distance_transform_edt
 from skimage import (data, draw, feature, future, io, measure, morphology,
                      segmentation, transform)
 from sklearn.ensemble import RandomForestClassifier
+import pylineclip as lc
+from skimage.morphology import skeletonize
+import skeleton_processor as sp
 
 # %% FUNCTION DEFENITIONS
 
@@ -353,7 +356,7 @@ def clean_predicted_roots(predicted_segmentation, small_objects_threshold = 500,
     closed = morphology.closing(no_small, morphology.diamond(closing_diameter))
     return closed
 
-def measure_roots(clean_root_image):
+def measure_roots(clean_root_image, quantile = 0.95, root_thickness = 7, minimalBranchLength = 20):
     """
     Function to compute length, orientation, center of each detected root (95% of feret diamter) and append it to a dataframe
     """
@@ -363,17 +366,92 @@ def measure_roots(clean_root_image):
     X = []
     Y = []
     orientations = []
+    approx_check = []
+    adjusted_length = []
+    adjusted_length_with_sqrt2 = []
     for props in reg_props:
+
+        # compute if root region can be approximated well using a line
+        if check_linear_approximation(props, quantile = quantile, root_thickness = root_thickness):
+            approx_check.append("OK")
+            adjusted_length.append(props.feret_diameter_max*0.95)
+            adjusted_length_with_sqrt2.append(props.feret_diameter_max*0.95)
+        else:
+            approx_check.append("Bad approx")
+
+            # skeletonize and clean
+            skeleton = skeletonize(props.image)
+            cleaned = sp.cleanSkeleton(skeleton, minimalBranchLength=minimalBranchLength)
+            #cleaned = morphology.remove_small_objects(cleaned, 10)
+            adjusted_length.append(cleaned.sum())
+            adjusted_length_with_sqrt2.append(sp.computeSkeletonLength_simple(cleaned))
+            
+        # compute line properties
         lengths.append(props.feret_diameter_max*0.95)
         X.append(props.centroid[1])
         Y.append(props.centroid[0])
         orientations.append(props.orientation)
-    df = pd.DataFrame({"X" : X,
-                       "Y" : Y,
-                       "orientation" : orientations,
-                       "length" : lengths})
+    df = pd.DataFrame({"X" : X,                                                         # X coordinate centroid of root
+                       "Y" : Y,                                                         # Y coordinate centroid of root
+                       "orientation" : orientations,                                    # orientation root direction
+                       "length" : lengths,                                              # lenght of root (assuming linearity)
+                       "approx_check" : approx_check,                                   # check if linear approximation is okay
+                       "adjusted_length" : adjusted_length,                             # adjusted length in case linear approximation is not okay (otherwise copy)
+                       'adjusted_length_with_sqrt2' : adjusted_length_with_sqrt2})      # adjusted length with improved lenght computatation (diagonal counts for sqrt(2))
     return df
         
+
+def check_linear_approximation(props, quantile = 0.95, root_thickness = 7):
+    """
+    Function to check if the linear approximation of the roots is acceptable for once connected component
+
+    PARAMETERS
+    ----------
+
+    props : skimage.measure._regionprops.RegionProperties
+        Region properties of one connected component
+
+    qualtile : float
+        Quantile of distance distrubtion to use for validations
+
+    root_thickness : float
+        Typical thickness of root (nr of pixels)
+
+    RETURNS
+    -------
+    bool
+    """
+    # get bbox-binary
+    bin = props.image
+    # get line approximation, adjusted for bbox-translation to origin (x0, y0) -> (0, 0)
+    y0, x0 = props.centroid
+    x0 = x0 - props.bbox[1]
+    y0 = y0 - props.bbox[0]
+    orientation = props.orientation
+    x2 = x0 - math.sin(orientation) * 0.5 * props.feret_diameter_max * 0.95
+    y2 = y0 - math.cos(orientation) * 0.5 * props.feret_diameter_max * 0.95
+    x3 = x0 + math.sin(orientation) * 0.5 * props.feret_diameter_max * 0.95
+    y3 = y0 + math.cos(orientation) * 0.5 * props.feret_diameter_max * 0.95
+    # get intersection with bbox
+    x3,y3,x4,y4 = lc.cohensutherland(0,
+                                    bin.shape[0]-1, 
+                                    bin.shape[1]-1,
+                                    0, 
+                                    x2, 
+                                    y2, 
+                                    x3, 
+                                    y3)
+    # draw line
+    line_coord = draw.line(round(y3), round(x3), round(y4), round(x4))
+    A = np.zeros(bin.shape, dtype = bool)
+    A[line_coord] = True
+    
+    # get distribution of distances 
+    dt = distance_transform_edt(~A)
+    return np.quantile(dt[bin], quantile) < root_thickness * 3
+
+
+
 
 # %% Functions for visualization
 
@@ -415,9 +493,27 @@ def show_predicted_segmentation(im, predicted_segmentation):
     plt.imshow(segmentation.mark_boundaries(im, predicted_segmentation, mode='thick'))
 
 
-def draw_detected_roots(clean_root_image, original_im, figSize = None):
+def draw_detected_roots(clean_root_image, 
+                        original_im, 
+                        figSize = None,
+                        quantile = 0.95,
+                        root_thickness = 7,
+                        minimalBranchLength = 20):
     """
     Visualize detected roots and their lenghts (major axis with 95% of Feret diameter)
+
+    PARAMETERS
+    ----------
+
+    quantile : float
+        Quantile for detecting deviation from linearity (see check_linear_approximation)
+    
+    root_thickness : float
+        Thickness of root for detecting deviation from linearity (see check_linear_approximation)
+
+    minimalBranchLength : int
+        Minimal lenght of a branch in the skeleton of a set of connected roots (for pruning)
+
     """
 
     if figSize is None:
@@ -428,29 +524,57 @@ def draw_detected_roots(clean_root_image, original_im, figSize = None):
     #to_show[clean_root_image, 0] = 255
     #ax.imshow(to_show)
 
+    original_im = original_im.copy()
     ax.imshow(segmentation.mark_boundaries(original_im, clean_root_image, mode='thick'))
 
     labeled = measure.label(clean_root_image)
     reg_props = measure.regionprops(labeled)
-    for props in reg_props:
+    for i, props in enumerate(reg_props):
         y0, x0 = props.centroid
         orientation = props.orientation
         x2 = x0 - math.sin(orientation) * 0.5 * props.feret_diameter_max * 0.95
         y2 = y0 - math.cos(orientation) * 0.5 * props.feret_diameter_max * 0.95
         x3 = x0 + math.sin(orientation) * 0.5 * props.feret_diameter_max * 0.95
         y3 = y0 + math.cos(orientation) * 0.5 * props.feret_diameter_max * 0.95
-        ax.plot((x0, x2), (y0, y2), '-r', linewidth=2.5)
-        ax.plot((x0, x3), (y0, y3), '-r', linewidth=2.5)
-        ax.plot(x0, y0, '.g', markersize=15)
+        if check_linear_approximation(props, quantile = quantile, root_thickness = root_thickness):
+            ax.plot((x0, x2), (y0, y2), '-r', linewidth=2.5)
+            ax.plot((x0, x3), (y0, y3), '-r', linewidth=2.5)
+        else:
+            ax.plot((x0, x2), (y0, y2), '-b', linewidth=2.5)
+            ax.plot((x0, x3), (y0, y3), '-b', linewidth=2.5)
 
-def save_detected_roots_im(clean_root_image, original_im, fname):
+            # skeletonize and clean
+            skeleton = skeletonize(props.image)
+            cleaned = sp.cleanSkeleton(skeleton, minimalBranchLength=minimalBranchLength)
+            #cleaned = morphology.remove_small_objects(cleaned, 3)
+
+            # add to image
+            bbox_slice = original_im[props.bbox[0]:props.bbox[2], props.bbox[1]:props.bbox[3],:] 
+            bbox_slice[cleaned,0] = 255
+            bbox_slice[cleaned,1] = 0
+            bbox_slice[cleaned,2] = 0
+        ax.text(x0, y0, str(i))
+
+        ax.plot(x0, y0, '.g', markersize=15)
+    ax.imshow(segmentation.mark_boundaries(original_im, clean_root_image, mode='thick'))
+    return original_im
+
+def save_detected_roots_im(clean_root_image, original_im, fname, 
+                            quantile = 0.95,
+                            root_thickness = 7,
+                            minimalBranchLength = 20):
     """
     Save Visualization of detected roots and their lenghts (calls draw_detected_roots using
     non-interactive mode of matplotlib)
     """
     FIGSIZE = (50, 30)
     plt.ioff()
-    draw_detected_roots(clean_root_image, original_im, figSize = FIGSIZE)
+    draw_detected_roots(clean_root_image,
+                        original_im, 
+                        figSize = FIGSIZE,
+                        quantile = quantile,
+                        root_thickness = root_thickness,
+                        minimalBranchLength = minimalBranchLength)
     plt.savefig(fname)
     plt.close('all')
     plt.ion()

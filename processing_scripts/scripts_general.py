@@ -171,7 +171,7 @@ show_traces(vertices_s, vertices_e)
 # clean detected roots
 roots = clean_predicted_roots(predicted_segmentation, small_objects_threshold=150, closing_diameter = 4)
 # draw detected roots
-draw_detected_roots(roots, im)
+draw_detected_roots(roots, im, minimalBranchLength=20)
 
 
 # %% TESTS TO IMPORT DATA FROM NEW CAMERA -> train on multiple images
@@ -220,3 +220,4 @@ show_traces(vertices_s, vertices_e)
 roots = clean_predicted_roots(predicted_segmentation, small_objects_threshold=150, closing_diameter = 4)
 # draw detected roots
 draw_detected_roots(roots, im)
+
