@@ -104,7 +104,7 @@ def load_training_image(img_file = "EOS 550D_046.JPG",
 
     return im, names, vertices_s, vertices_e
     
-    
+
 def flip_XY_RC(XY_or_RC):
     
     """
