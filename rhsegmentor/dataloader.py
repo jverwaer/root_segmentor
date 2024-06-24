@@ -29,7 +29,11 @@ def load_training_image(img_file: str = "EOS 550D_046.JPG",
     - img_file (str): File name of the RGB training image.
     - root_traces_file (str): File containing root traces (a csv file).
     - auto_transform (bool): Flag to automatically transform coordinates (default: False).
-    - src_dst (tuple[list]): Tuple containing source and destination coordinates for transformation.
+    - src_dst (tuple[list]): Tuple containing source and destination coordinates for transformation. 
+        Example: src_dst[0] = [[2683, 75],[2472, 82],[2682, 3373],[2536, 3370]]
+                 src_dst[1] = [[83, 2501],[86, 2715],[3375, 2493],[3375, 2648]]
+        where src_dst[0] contains the coördinates of several points in the original coordinate system and 
+        src_dst[1] contains the coördinates of these points in the new coördinate system.
 
     Returns:
     - im (np.array): Training image as a numpy RGB array.

@@ -9,9 +9,60 @@ from scipy.ndimage import distance_transform_edt
 from functools import partial
 
 
+def root_segmentation_mask(im : np.ndarray,
+                           vertices_s_RC : np.ndarray,
+                           vertices_e_RC : np.ndarray,
+                           dilatation_radius : int =7,
+                           buffer_radius : int =15,
+                           no_root_radius : int =100) -> np.ndarray:
+    """
+    Function to create a root segmentation mask that allows to use the start/end points of the annotated roots
+    to create an integer image  image distinguishing: root (1), no-root (2) and unknown (0).
+    
+    Pixels crossed by on annotated root segments are set to 1, the line-strucures obtaine that way are dilated with
+    `dilatation_radius` pixels (the thickness of the root is thus 2 * `dilatation_radius`). The thus obtained root
+    pixels are surrounded by a bufferof unknown (0) pixels with radius `buffer_radius` (as these areas are hard precisely segment). 
+    Beyound this buffer, the remaining pixels are treated as non-root (2) up to a distance `no_root_radius` of the roots. 
+    Pixels beyond `no_root_radius` are set to unknown (0) to avoid an over-representation of non-relevant background for training. NOTE: if the
+    entire background should be treated as such, set `no_root_radius` to None.
+
+    
+    PARAMETERS
+    ----------
+    im : np.array
+        RGB image of roots
+    
+    vertices_s_RC : (k x 2) np.array
+        coordinates in row-column coordinates of start of trace 
+    
+    vertices_e_RC : (k x 2) np.array
+        coordinates in row-column coordinates of  end of trace 
+        
+    dilatation_radius : int
+        radius used for dilating the root traces
+    
+    buffer_radius : int
+        size of buffer zone around root pixels
+
+    no_root_radius : int
+        all pixels between buffer_radius and no_root_radius are used as training data
+        instances for 'no root' class (gets label 2). If None, it is set to nr of rows
+        in the image meaning that it is ignored. Default is 100
+    
+    RETURNS
+    -------
+    root_mask : np.array of dilated root traces
+    """
+
+    root_mask = create_root_mask(im, vertices_s_RC, vertices_e_RC, dilatation_radius)
+    return create_root_buffer_background_image(root_mask, buffer_radius, no_root_radius)
+
+
+
+
 def create_root_mask(im, vertices_s_RC, vertices_e_RC, dilatation_radius=7):
     """
-    Function to create a root mask, allows to use the start/end points of the annotated traces
+    Function to create a root mask, allows to use the start/end points of the annotated roots
     to create a binary image (root = 1, no-root = 0). Note: no exclusion zone is used here around
     the roots 
     
@@ -43,7 +94,7 @@ def create_root_mask(im, vertices_s_RC, vertices_e_RC, dilatation_radius=7):
 
 def create_root_buffer_background_image(root_mask, buffer_radius=15, no_root_radius=100):
     """
-    Function to create a segmented image containing distinguishing: root (1), no-root (2)
+    Function to create a segmented image distinguishing: root (1), no-root (2)
     and unknown (0) where unknown is a buffer zone around the roots
     
     PARAMETERS
@@ -73,20 +124,21 @@ def create_root_buffer_background_image(root_mask, buffer_radius=15, no_root_rad
     root_buffer_background_image[no_root_mask] = 2
     
     return root_buffer_background_image
+
+
     
-    
-def create_training_data(root_buffer_background_image):
+def create_training_image(root_buffer_background_image):
     """
-    Function to create training data by considering a specific region of the image
+    Function to create a root segementation mask. 
     
     PARAMETERS
     ----------
-    root_buffer_background_image : np.array
+    root_buffer_background_image : np.ndarray
         segmented image containing root (1), no-root (2), and unknown (0)
     
     RETURNS
     -------
-    training_data : np.array
+    training_data : np.ndarray
         training dataset with a specific region of the image
     """
     sum_bg_row = root_buffer_background_image.shape[1] * 2

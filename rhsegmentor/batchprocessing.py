@@ -17,9 +17,24 @@ Please refer to the individual function docstrings for more details on their usa
 import os
 import numpy as np
 import traceback
+import matplotlib.pyplot as plt
+from PIL import Image
 
 from . import dataloader as dl
 from . import featureextractor as fe
+
+
+# a palette for saving segmentation masks as rgb images
+# Make a palette
+palette = [255,0,0,    # 0=red
+           0,255,0,    # 1=green
+           0,0,255,    # 2=blue
+           255,255,0,  # 3=yellow
+           0,255,255]  # 4=cyan
+# Pad with zeroes to 768 values, i.e. 256 RGB colours
+palette = palette + [0]*(768-len(palette))
+
+
 
 def imgs_to_XY_data(img_file_list : list[str] = None,
                     root_traces_file_list : list[str] = None,
@@ -27,7 +42,9 @@ def imgs_to_XY_data(img_file_list : list[str] = None,
                     dilatation_radius : int = 7,
                     buffer_radius : int = 15,
                     no_root_radius : int = 100,
-                    sigma_max : int = 16) -> None:
+                    sigma_max : int = 16,
+                    save_dir : str = './',
+                    save_masks_as_im : bool = False) -> None:
     """
     Function to transform a set of images and adjoining root trace files to Features (X) and Labels (Y)
     that can be used for training a segmentation model. Computed Features (X) and Labels (Y) are stored as
@@ -73,31 +90,21 @@ def imgs_to_XY_data(img_file_list : list[str] = None,
         root_traces_file_list = [fname[:-4] + " vertices.csv" for fname in img_file_list]
 
     for img_file, root_traces_file in zip(img_file_list, root_traces_file_list):
+            
+            # file name for saving
+            raise NotImplementedError
+
             if not os.path.isfile(img_file[:-4] + "FEATURES.npy"):
                 try:
                     # load image
                     im, names, vertices_s, vertices_e = dl.load_training_image(img_file,
                                                                             root_traces_file,
                                                                             auto_transform = auto_transform)
-
-                    # transform coordinates
-                    # OUTCOMMENTED as now handled by the function 'load_training_data'
-                    #src = [[2683, 75],
-                    #    [2472, 82],
-                    #    [2682, 3373],
-                    #    [2536, 3370]]
-
-                    #dst = [[83, 2501],
-                    #        [86, 2715],
-                    #        [3375, 2493],
-                    #        [3375, 2648]]
-
-                    #vertices_s = transform_coordinates(src, dst, vertices_s)
-                    #vertices_e = transform_coordinates(src, dst, vertices_e)
+                    
                     vertices_s_RC = dl.flip_XY_RC(vertices_s)
                     vertices_e_RC = dl.flip_XY_RC(vertices_e)
 
-                    # create root mask
+                    # create root mask                    
                     root_mask = fe.create_root_mask(im, 
                                                  vertices_s_RC, 
                                                  vertices_e_RC,
@@ -107,7 +114,10 @@ def imgs_to_XY_data(img_file_list : list[str] = None,
                                                                                  no_root_radius = no_root_radius)
 
                     # create training data labels
-                    training_labels = fe.create_training_data(root_buffer_background)
+                    # training_labels = fe.create_training_image(root_buffer_background)
+                    training_labels = root_buffer_background
+
+
 
                     # compute features
                     features = fe.im2features(im, sigma_max = sigma_max)
@@ -119,9 +129,20 @@ def imgs_to_XY_data(img_file_list : list[str] = None,
                     # save features
                     np.save(img_file[:-4] + "FEATURES", features_flat)
                     np.save(img_file[:-4] + "LABELS", label_flat)
+
+                    if save_masks_as_im:
+                        # save segmentation mask as image
+                        pi = Image.fromarray(training_labels,'P')
+                        # Put the palette in
+                        pi.putpalette(palette)
+                        # Display and save
+                        pi.save(img_file[:-4] + 'MASK.png')
+
                 except Exception as e:
                     print("Problem processing " + img_file)
+                    print("Traceback of -- ", img_file )
                     traceback.print_exc()
+                    print("End traceback -- ", img_file )
             else:
                 print("skipping " + img_file, "as it FEATURES exist already")
 
