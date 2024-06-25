@@ -5,6 +5,13 @@ Module that allows to train a pixel classifier
 from sklearn.ensemble import RandomForestClassifier
 from skimage import future
 import numpy as np
+from joblib import dump, load
+
+# alias for dumping model to binary file
+dump_model = dump
+
+# alias for loading model from binary file
+load_model = load
 
 def train_segmentor(features: np.ndarray, training_labels: np.ndarray) -> RandomForestClassifier:
     """

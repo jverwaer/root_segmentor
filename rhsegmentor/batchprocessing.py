@@ -22,6 +22,7 @@ from PIL import Image
 
 from . import dataloader as dl
 from . import featureextractor as fe
+from . import utils
 
 
 # a palette for saving segmentation masks as rgb images
@@ -66,6 +67,11 @@ def imgs_to_XY_data(img_file_list : list[str] = None,
         Radius for excluding the root region from the buffer background image. Default is 100.
     sigma_max : int, optional
         Maximum sigma value for computing image features. Default is 16.
+    save_dir : str (or None)
+        Directory to save to (defaults to working directory). When set to None, the results will be saved
+        in the directory of the original images
+    save_masks_as_im : bool (default False)
+        Save the segmentation masks (used for training) as png-images
     
     RETURNS
     -------
@@ -91,10 +97,12 @@ def imgs_to_XY_data(img_file_list : list[str] = None,
 
     for img_file, root_traces_file in zip(img_file_list, root_traces_file_list):
             
-            # file name for saving
-            raise NotImplementedError
+            # file name for saving (if None save in same directory as reading)
+            features_fname = utils.get_save_fname(img_file, save_dir, "FEATURES.npy")
+            labels_fname = utils.get_save_fname(img_file, save_dir, "LABELS.npy")
+            img_fname = utils.get_save_fname(img_file, save_dir, "MASK.png")
 
-            if not os.path.isfile(img_file[:-4] + "FEATURES.npy"):
+            if not os.path.isfile(features_fname):
                 try:
                     # load image
                     im, names, vertices_s, vertices_e = dl.load_training_image(img_file,
@@ -127,8 +135,8 @@ def imgs_to_XY_data(img_file_list : list[str] = None,
                     label_flat = training_labels[training_labels > 0]
 
                     # save features
-                    np.save(img_file[:-4] + "FEATURES", features_flat)
-                    np.save(img_file[:-4] + "LABELS", label_flat)
+                    np.save(features_fname, features_flat)
+                    np.save(labels_fname, label_flat)
 
                     if save_masks_as_im:
                         # save segmentation mask as image
@@ -136,7 +144,7 @@ def imgs_to_XY_data(img_file_list : list[str] = None,
                         # Put the palette in
                         pi.putpalette(palette)
                         # Display and save
-                        pi.save(img_file[:-4] + 'MASK.png')
+                        pi.save(img_fname)
 
                 except Exception as e:
                     print("Problem processing " + img_file)
