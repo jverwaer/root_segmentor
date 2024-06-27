@@ -1,12 +1,6 @@
 import numpy as np
 import os
-from joblib import dump, load
 
-# alias for dumping model to binary file
-dump_model = dump
-
-# alias for loading model from binary file
-load_model = load
 
 def flip_XY_RC(XY_or_RC):
     
@@ -28,7 +22,7 @@ def flip_XY_RC(XY_or_RC):
 
 def get_save_fname(fname, save_dir, suffix = ".dummy"):
     """
-    Function to split the absolute path string into directory and file name and append a suffix
+    Function to split the absolute path string into directory and file name and append a suffix.
     If save_dir is None, the directory will be joined with the file name where the extension (after the last .)
     is replaced with `suffix`. Else, the directory of the file name will be replace with `save_dir`.
     
@@ -50,6 +44,23 @@ def get_save_fname(fname, save_dir, suffix = ".dummy"):
     if save_dir is None:
         return os.path.join(directory, f"{filename.split('.')[0]}_{suffix}")
     return os.path.join(save_dir, f"{filename.split('.')[0]}_{suffix}")
+
+def listdir_with_path(path, suffix=""):
+    """
+    Returns a list of extended file paths in the given directory that end with the specified suffix. The `path` will be prepended
+    to the file names (so when `path` is absolute, the result will be an absolute path).
+
+    PARAMETERS
+    ----------
+        path (str): The directory path.
+        endswith (str, optional): The suffix to filter the file names. Defaults to "".
+
+    Returns
+    -------
+        list: A list of file paths.
+
+    """
+    return [os.path.join(path,f) for f in os.listdir(path) if f.endswith(suffix)]
   
 
 

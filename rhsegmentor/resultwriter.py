@@ -3,6 +3,7 @@
 Module that allows to visualize and save root detection results. 
 """
 import math
+import numpy as np
 
 import matplotlib.pyplot as plt
 from skimage import (measure, segmentation)
@@ -12,56 +13,76 @@ from . import skeleton_processor as sp
 from . import postprocessor as pp
 
 
-def show_traces(vertices_s, vertices_e, im = None):
-    
+def show_traces(vertices_s: np.ndarray,
+                vertices_e: np.ndarray,
+                im: np.ndarray = None) -> None:
     """
     Function to show root traces on image
     
-    PARAMETERS
+    Parameters
     ----------
-     
-    vertices_s : (k x 2) np.array
-        coordinates in xy coordinates of start of trace 
-        
-    vertices_e : (k x 2) np.array
-        coordinates in xy coordinates of  end of trace 
-        
-    im : np.array
-        RGB image or root image (binary) or root_bg_image if None, only traces are 
+    vertices_s : np.ndarray
+        Coordinates in xy coordinates of start of trace 
+    vertices_e : np.ndarray
+        Coordinates in xy coordinates of end of trace 
+    im : np.ndarray, optional
+        RGB image or root image (binary) or root_bg_image. If None, only traces are 
         plotted (typically for overlay with existing background image)
     
+    Returns
+    -------
+    None
     """
-    
     if not im is None:
         plt.imshow(im)
     for i in range(len(vertices_e)):
-        plt.plot((vertices_s[i,0], vertices_e[i,0]),
-                   (vertices_s[i,1], vertices_e[i,1]), '-*')
+        plt.plot((vertices_s[i,0], vertices_e[i,0]), (vertices_s[i,1], vertices_e[i,1]), '-*')
         
 
-def show_predicted_segmentation(im, predicted_segmentation):
-    
+def show_predicted_segmentation(im: np.ndarray,
+                                predicted_segmentation: np.ndarray) -> None:
     """
-    Function to create contour plot of predicted_segmentation overlayed on
-    a background image
+    Function to create a contour plot of the predicted segmentation overlayed on a background image.
+
+    Parameters
+    ----------
+
+    - im: np.ndarray
+        The background image.
+    - predicted_segmentation: np.ndarray
+        The predicted segmentation.
+
+    Returns
+    -------
+
+    None
     """
     
     # show segmentation result
     plt.imshow(segmentation.mark_boundaries(im, predicted_segmentation, mode='thick'))
 
 
-def draw_detected_roots(clean_root_image, 
-                        original_im, 
-                        figSize = None,
-                        quantile = 0.95,
-                        root_thickness = 7,
-                        minimalBranchLength = 20):
+def draw_detected_roots(clean_root_image: np.ndarray, 
+                        original_im: np.ndarray, 
+                        figSize: tuple = None,
+                        quantile: float = 0.95,
+                        root_thickness: float = 7,
+                        minimalBranchLength: int = 20) -> np.array:
     """
-    Visualize detected roots and their lenghts (major axis with 95% of Feret diameter)
+    Visualize detected roots and their lengths (major axis with 95% of Feret diameter)
 
     PARAMETERS
     ----------
 
+    clean_root_image : np.ndarray
+        Binary image of the detected roots
+    
+    original_im : np.ndarray
+        Original image on which the roots are detected
+    
+    figSize : tuple, optional
+        Size of the figure (width, height) in inches. If not provided, the default size is used.
+    
     quantile : float
         Quantile for detecting deviation from linearity (see check_linear_approximation)
     
@@ -69,7 +90,13 @@ def draw_detected_roots(clean_root_image,
         Thickness of root for detecting deviation from linearity (see check_linear_approximation)
 
     minimalBranchLength : int
-        Minimal lenght of a branch in the skeleton of a set of connected roots (for pruning)
+        Minimal length of a branches in the skeleton to retain (used in skeleton pruning)
+
+
+    Returns
+    -------
+    np.ndarray
+        The modified original image with the detected roots visualized
 
     """
 
@@ -116,13 +143,24 @@ def draw_detected_roots(clean_root_image,
     ax.imshow(segmentation.mark_boundaries(original_im, clean_root_image, mode='thick'))
     return original_im
 
-def save_detected_roots_im(clean_root_image, original_im, fname, 
-                            quantile = 0.95,
-                            root_thickness = 7,
-                            minimalBranchLength = 20):
+def save_detected_roots_im(clean_root_image: np.ndarray, 
+                            original_im: np.ndarray, 
+                            fname: str, 
+                            quantile: float = 0.95,
+                            root_thickness: float = 7,
+                            minimalBranchLength: int = 20) -> None:
     """
-    Save Visualization of detected roots and their lenghts (calls draw_detected_roots using
-    non-interactive mode of matplotlib)
+    Save Visualization of detected roots and their lengths.
+
+    This function saves a visualization of the detected roots and their lengths using the non-interactive mode of matplotlib.
+    
+    Parameters:
+    - clean_root_image: The image containing the detected roots.
+    - original_im: The original image.
+    - fname: The filename to save the visualization.
+    - quantile: The quantile value used for visualization (default: 0.95).
+    - root_thickness: The thickness of the root lines in the visualization (default: 7).
+    - minimalBranchLength: The minimal length of a branch to be considered as a root (default: 20).
     """
     FIGSIZE = (50, 30)
     plt.ioff()

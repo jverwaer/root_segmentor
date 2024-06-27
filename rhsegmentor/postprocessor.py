@@ -15,19 +15,63 @@ import pylineclip as lc
 from . import skeleton_processor as sp
 
 
-def clean_predicted_roots(predicted_segmentation, small_objects_threshold = 500, closing_diameter = 6):
+def clean_predicted_roots(predicted_segmentation : np.ndarray,
+                          small_objects_threshold : int = 500,
+                          closing_diameter : int = 6) -> np.ndarray:
     """
     Functions that takes a predicted segmentation as inputs (roots are assumed to have value 1)
-    and retunrs cleaned (boolean) root image
+    and returns a cleaned (boolean) root image
+    
+    Parameters:
+    ----------
+    predicted_segmentation : np.ndarray
+        The predicted segmentation image where roots are assumed to have a value of 1.
+        
+    small_objects_threshold : int, optional
+        The threshold size (in pixels) below which small objects will be removed from the segmented image.
+        Default is 500.
+        
+    closing_diameter : int, optional
+        The diameter (in pixels) of the diamond-shaped structuring element used for morphological closing.
+        Default is 6.
+        
+    Returns:
+    -------
+    np.ndarray
+        The cleaned (boolean) root image where small objects have been removed and gaps have been closed.
     """
     seg = predicted_segmentation == 1
     no_small = morphology.remove_small_objects(seg, small_objects_threshold)
     closed = morphology.closing(no_small, morphology.diamond(closing_diameter))
     return closed
 
-def measure_roots(clean_root_image, quantile = 0.95, root_thickness = 7, minimalBranchLength = 20):
+def measure_roots(clean_root_image: np.ndarray,
+                  quantile: float = 0.95,
+                  root_thickness: float = 7,
+                  minimalBranchLength: int = 20) -> pd.DataFrame:
     """
     Function to compute length, orientation, center of each detected root (95% of feret diamter) and append it to a dataframe
+    
+    Parameters:
+    ----------
+    clean_root_image : np.ndarray
+        The cleaned (boolean) root image where small objects have been removed and gaps have been closed.
+        
+    quantile : float, optional
+        The quantile of the distance distribution to use for validation. Default is 0.95.
+        
+    root_thickness : float, optional
+        The typical thickness of a root in terms of the number of pixels. Default is 7.
+        
+    minimalBranchLength : int, optional
+        The minimal length of a branch in the skeletonized root image. Default is 20.
+        
+    Returns:
+    -------
+    pd.DataFrame
+        A dataframe containing the X and Y coordinates of the root centroid, the root orientation, the root length (assuming linearity),
+        the linear approximation check, the adjusted length in case the linear approximation is not okay, and the adjusted length with improved
+        length computation (diagonal counts for sqrt(2)).
     """
     labeled = measure.label(clean_root_image)
     reg_props = measure.regionprops(labeled)
@@ -70,23 +114,24 @@ def measure_roots(clean_root_image, quantile = 0.95, root_thickness = 7, minimal
     return df
         
 
-def check_linear_approximation(props, quantile = 0.95, root_thickness = 7):
+def check_linear_approximation(props: measure._regionprops.RegionProperties,
+                               quantile: float = 0.95,
+                               root_thickness: float = 7) -> bool:
     """
     Function to check if the linear approximation of the roots is acceptable for once connected component
 
-    PARAMETERS
+    Parameters:
     ----------
-
     props : skimage.measure._regionprops.RegionProperties
         Region properties of one connected component
 
-    qualtile : float
-        Quantile of distance distrubtion to use for validations
+    quantile : float, optional
+        Quantile of distance distribution to use for validation. Default is 0.95.
 
-    root_thickness : float
-        Typical thickness of root (nr of pixels)
+    root_thickness : float, optional
+        Typical thickness of root (number of pixels). Default is 7.
 
-    RETURNS
+    Returns:
     -------
     bool
     """
