@@ -19,9 +19,15 @@ import numpy as np
 import traceback
 import matplotlib.pyplot as plt
 from PIL import Image
+from skimage import io
+import pandas as pd
+from sklearn.base import BaseEstimator
 
 from . import dataloader as dl
 from . import featureextractor as fe
+from . import postprocessor as pp
+from . import pixelclassifier as pc
+from . import resultwriter as rw
 from . import utils
 
 
@@ -216,3 +222,91 @@ def compile_training_dataset_from_precomputed_features(features_file_list: list[
 
     return np.concatenate(features_list), np.concatenate(labels_list)
 
+
+
+def extract_rh_props(im : np.ndarray, 
+                     clf : BaseEstimator,
+                     fname : str = 'None',
+                     sigma_max : int = 10,
+                     small_objects_threshold : int = 150,
+                     closing_diameter : int = 4,
+                     root_thickness : float = 7.0,
+                     minimalBranchLength : int = 10,
+                     save_dir : str = "./"):
+    
+    """
+    Extracts root properties from an RGB image using a trained classifier.
+
+    Parameters:
+    - im (np.ndarray): An RGB image.
+    - clf (BaseEstimator): A trained classifier for root segmentation.
+    - fname (str): A file name (added as a column in the resulting dataframe).
+    - sigma_max (int, optional): The maximum sigma value for feature computation. Defaults to 10.
+    - small_objects_threshold (int, optional): The threshold for removing small objects in the predicted segmentation. Defaults to 150.
+    - closing_diameter (int, optional): The diameter for the closing operation in root cleaning. Defaults to 4.
+    - root_thickness (float, optional): The assumed thickness of the roots. Defaults to 7.0.
+    - minimalBranchLength (int, optional): The minimal length of a root branch. Defaults to 10.
+    - save_dir (str, optional): The directory to save the output images. Defaults to "./".
+
+    Returns:
+    - pd.DataFrame: A pandas DataFrame containing the computed root properties for the image.
+
+    """
+
+    # compute features
+    features = fe.im2features(im, sigma_max = sigma_max)
+    # predict
+    predicted_segmentation = pc.predict_segmentor(clf, features)
+    # clean detected roots
+    roots = pp.clean_predicted_roots(predicted_segmentation,
+                                    small_objects_threshold=small_objects_threshold,
+                                    closing_diameter = closing_diameter)
+    # compute root properties
+    results_df = pp.measure_roots(roots,
+                                    root_thickness = root_thickness,
+                                    minimalBranchLength = minimalBranchLength)
+    results_df["fname"] = fname
+    # save image for quality check
+    fname_save = utils.get_save_fname(fname = fname,
+                                    save_dir = save_dir,
+                                    suffix = "result.png")
+    rw.save_detected_roots_im(clean_root_image = roots,
+                            original_im = im,
+                            fname = fname_save,
+                            root_thickness = 7,
+                            minimalBranchLength = 10)
+
+    return results_df
+
+
+def batch_extract_rh_props(file_list : list[str], **kwargs):
+    """
+    Extracts root properties from a list of images using a trained classifier.
+
+    Parameters:
+    - file_list (list[str]): A list of file paths to the input images.
+
+    kwargs includes: 
+    - clf (BaseEstimator): A trained classifier for root segmentation.
+    - sigma_max (int, optional): The maximum sigma value for feature computation. Defaults to 10.
+    - small_objects_threshold (int, optional): The threshold for removing small objects in the predicted segmentation. Defaults to 150.
+    - closing_diameter (int, optional): The diameter for closing operation in root cleaning. Defaults to 4.
+    - root_thickness (float, optional): The assumed thickness of the roots. Defaults to 7.0.
+    - minimalBranchLength (int, optional): The minimal length of a root branch. Defaults to 10.
+    - save_dir (str, optional): The directory to save the output images. Defaults to "./".
+
+    Returns:
+    - pd.DataFrame: A pandas DataFrame containing the computed root properties for each image.
+    """
+    
+    all_results = []
+
+    for fname in file_list:
+        # read image
+        im = io.imread(fname)
+        # process image
+        results_df = extract_rh_props(im, fname = fname, **kwargs)
+        all_results.append(results_df)
+
+    # concatenate and save in excel-format
+    return pd.concat(all_results)
