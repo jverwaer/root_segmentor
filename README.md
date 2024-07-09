@@ -2,6 +2,12 @@
 
 **rhsegmentor** is a Python package simplifies the bulk segmentation and analysis of root hair images.
 
+## Installation
+
+`rhsegmentor` is available on pypi or can be installed directly form the git repo. We recommend to use a dedicated environment (using `venv`).
+
+`pip install rhsegmentor`
+
 ## Tutorial
 
 This tutorial guides you throuhg the main use cases of the `rhsegmentor` package.
