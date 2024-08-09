@@ -3,7 +3,7 @@
 # Import setuptools
 
 try:
-    from setuptools import setup
+    from setuptools import setup, find_packages
     _has_setuptools = True
 except ImportError:
     from distutils.core import setup
@@ -34,7 +34,8 @@ INSTALL_REQUIRES = [
     "matplotlib>=3.8.2"
 ]
 
-PACKAGES=["rhsegmentor"]
+#PACKAGES=["rhsegmentor"]
+PACKAGES = find_packages(include=['rhsegmentor'])
 CLASSIFIERS = [
               "Development Status :: 4 - Beta",
               "Programming Language :: Python :: 3",
@@ -66,5 +67,6 @@ if __name__ == "__main__":
           url=URL,
           download_url=URL,
           install_requires=INSTALL_REQUIRES,
-          classifiers=CLASSIFIERS
+          classifiers=CLASSIFIERS,
+          include_package_data=True
          )
