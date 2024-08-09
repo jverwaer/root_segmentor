@@ -1,3 +1,1 @@
-include rhsegmentor/data
-include rhsegmentor/data/*.csv
-include rhsegmentor/data/*.jpg
+include rhsegmentor/data/*
