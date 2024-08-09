@@ -1,0 +1,9 @@
+numpy>=1.23.0
+PIL>=10.2.0
+skimage>=0.22.0
+scipy>=1.11.4
+pandas>=2.1.4
+sklearn>=1.5.0
+joblib>=1.4.2
+pylineclip>=1.0.0
+matplotlib>=3.8.2
