@@ -10,7 +10,7 @@ import shutil
 training_imgs = ["img1.jpg", "img2.jpg", "img3.jpg"]
 training_labels = ["img1 vertices.csv", "img2 vertices.csv", "img3 vertices.csv"]
 
-test_imgs = ["img4.jpg", "img5.csv"]
+test_imgs = ["img4.jpg", "img5.jpg"]
 test_labels = ["img4 vertices.csv", "img5 vertices.csv"]
 
 def get_image_path(fname):
