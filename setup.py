@@ -44,7 +44,6 @@ CLASSIFIERS = [
               "Programming Language :: Python :: 3.8",
               "Programming Language :: Python :: 3.9",
               "License :: OSI Approved :: MIT License",
-              "Topic :: Biology",
               "Intended Audience :: Science/Research",
               "Operating System :: Microsoft :: Windows",
               "Operating System :: Unix",
