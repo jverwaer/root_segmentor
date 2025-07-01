@@ -4,9 +4,9 @@
 
 ## Installation
 
-`rhsegmentor` is available on pypi or can be installed directly form the git repo. We recommend to use a dedicated environment (using `venv`).
+`rhsegmentor` can be installed directly form the git repo. We recommend to use a dedicated environment (using `venv` or `conda`).
 
-`pip install rhsegmentor`
+`!pip install git+https://github.com/jverwaer/root_segmentor.git`
 
 ## Tutorial
 
