@@ -6,7 +6,7 @@
 
 `rhsegmentor` can be installed directly form the git repo. We recommend to use a dedicated environment (using `venv` or `conda`).
 
-`!pip install git+https://github.com/jverwaer/root_segmentor.git`
+`pip install git+https://github.com/jverwaer/root_segmentor.git`
 
 ## Tutorial
 
