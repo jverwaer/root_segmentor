@@ -1,0 +1,1 @@
+when using the scripts, this folder should contain the images

@@ -2,6 +2,22 @@
 
 **rhsegmentor** is a Python package simplifies the bulk segmentation and analysis of root hair images.
 
+## Using rhsegmentor
+
+rhsegmentor is available as a Python package and can be pip-installed. However, users who prefer not to pip-install the package will find most functionalities of the package in `bundle` folder (the Python modules `root_segmentor_VIB.py` and `skeleton_processor.py` in that folder).
+
+- **Option 1: step-by-step analysis.** Users who want to learn about the functionalities of the package and the structure of the analysis pipeline are advised to follow the steps as described in *Installation* and *Tutorial* below.
+
+- **Option 2: all-in-one script.** Users who prefer to use a pre-configured pipeline (without caring too much about the details of the pipeline) can copy-paste the `bundle` folder or `bundle.zip` on their hard drive and use to following files:
+    - `scripts/train.py`: a Python script to train a custom root hair detector (data and output folders can be set inside the script). Can be run from command line: `cd` to the `bundle/scripts` folder and run the command
+    `python train.py` in the console.
+
+    - `scripts/analyze.py`: a Python script to apply the root detection pipeline (in bulk) on a folder of root images. Can be run from command line: `cd` to the `bundle/scripts` folder and run the command
+    `python analyze.py` in the console.
+
+    - **NOTE** that, when the package has not been pip-installed, make sure to install all packages listed in `requirements.txt`
+
+
 ## Installation
 
 `rhsegmentor` can be installed directly form the git repo. We recommend to use a dedicated environment (using `venv` or `conda`).
