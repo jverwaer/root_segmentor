@@ -3,7 +3,7 @@
 **rhsegmentor** is a Python package simplifies the bulk segmentation and analysis of root hair images.
 
 <center>
-<img src="image.png" alt="example" width="300"/>
+<img src="image.png" alt="example" width="500"/>
 </center>
 
 ## Using rhsegmentor
